@@ -1,0 +1,10 @@
+{
+  "name": "zigtal-dev",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently -n API,WEB -c green,cyan \"./chatbot-env/bin/python -m uvicorn api:app --reload --port 8000\" \"cd zigtal-chatbot-ui && npm run dev\""
+  },
+  "devDependencies": {
+    "concurrently": "^9.0.0"
+  }
+}

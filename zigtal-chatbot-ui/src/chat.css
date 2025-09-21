@@ -1,0 +1,368 @@
+:root{
+  /* Light theme palette */
+  --brand: #FFA500;        /* accent */
+  --nav:   #5352c1;        /* primary (your purple) */
+  --bg:    #ffffff;        /* page background */
+  --panel: #ffffff;        /* chat panel background */
+  --text:  #0f172a;        /* primary text (slate-900) */
+  --muted: #64748b;        /* subtle text (slate-500) */
+  --line:  #e5e7eb;        /* borders (gray-200) */
+}
+
+html, body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Poppins", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+}
+
+/* ---------- Floating bubble: logo-only ---------- */
+.zcb-bubble{
+  position: fixed; right: 20px; bottom: 20px;
+  padding: 0; margin: 0; border: 0; background: transparent;
+  width: 58px; height: 58px; display: grid; place-items: center;
+  cursor: pointer; z-index: 2147483000;
+  transition: transform .12s ease, filter .2s ease;
+  /* lighter shadow that looks good on white */
+  filter: drop-shadow(0 8px 18px rgba(2,6,23,.18));
+}
+.zcb-bubble:hover{ transform: translateY(-2px) scale(1.02); filter: drop-shadow(0 12px 26px rgba(2,6,23,.22)); }
+.zcb-bubble:active{ transform: translateY(0) scale(.98); }
+.zcb-bubble{ outline: none; -webkit-tap-highlight-color: transparent; }
+.zcb-bubble:focus{ outline: none; }
+.zcb-bubble:focus-visible{
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(83,82,193,.30); /* accessible focus ring */
+}
+
+/* If you’re using an <img>, this just sizes it */
+.zcb-bubble img{ width: 58px; height: 58px; display: block; }
+
+/* If you’re using the mask-based colored logo (PNG/SVG silhouette), keep this: */
+/*
+.zcb-logo{
+  width: 58px; height: 58px; display: block;
+  background-color: var(--nav);
+  -webkit-mask: url("/zigtal-logo.svg") center / contain no-repeat;
+  mask: url("/zigtal-logo.svg") center / contain no-repeat;
+}
+*/
+
+/* ---------- Chat panel ---------- */
+/* --- Chat panel anchoring & sizing (mobile safe) --- */
+.zcb-panel {
+  position: fixed;
+  right: max(16px, env(safe-area-inset-right));
+  bottom: max(16px, env(safe-area-inset-bottom));
+  width: clamp(320px, 90vw, 420px);
+
+  /* NEW: consistent tall height on desktop; still respects tiny screens */
+  height: clamp(560px, 78vh, 760px);
+  max-height: calc(
+    100vh - max(16px, env(safe-area-inset-top)) - max(16px, env(safe-area-inset-bottom))
+  );
+
+  display: grid;
+  grid-template-rows: auto 1fr auto; /* header, messages, input */
+  border-radius: 16px;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+  z-index: 2147483000;
+}
+
+/* If you previously used transforms to slide open/closed, neutralize them when open */
+.zcb-panel.open {
+  transform: none !important;
+}
+
+/* Messages area must scroll, not the whole panel */
+.zcb-messages {
+  overflow: auto;
+  -webkit-overflow-scrolling: touch; /* iOS smooth scroll */
+}
+
+/* Very short screens: let the panel take (almost) the whole viewport height */
+@media (max-height: 560px) {
+  .zcb-panel {
+    width: min(95vw, 420px);
+    max-height: calc(100vh - max(8px, env(safe-area-inset-bottom)));
+    bottom: max(8px, env(safe-area-inset-bottom));
+  }
+}
+
+/* Bubble button: keep it in-bounds on mobile safe-areas too */
+#zigtal-bubble-btn.zcb-bubble {
+  position: fixed;
+  right: max(16px, env(safe-area-inset-right));
+  bottom: max(16px, env(safe-area-inset-bottom));
+}
+
+
+.zcb-header{
+  padding: 12px 14px;
+  background: linear-gradient(180deg, rgba(83,82,193,.10) 0%, rgba(255,255,255,1) 42%);
+  border-bottom: 2px solid var(--brand);
+  display: flex; justify-content: space-between; align-items: center;
+}
+.zcb-headerTitle{ display: flex; align-items: center; gap: 8px; font-weight: 600; }
+.zcb-dotBrand{ width: 10px; height: 10px; border-radius: 10px; background: var(--brand); box-shadow: 0 0 0 2px rgba(255,165,0,.25); }
+
+/* typing indicator */
+/* Assistant typing bubble that sits inside the messages list (bottom-left) */
+.zcb-typingBubble{
+  align-self: flex-start;
+  background: #f8fafc;           /* light gray, same family as bot bubbles */
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 8px 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+/* the three dots you already use */
+.zcb-typing{
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 14px;
+}
+.zcb-typing .dot{
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--nav); opacity: .4; animation: zcb-blink 1.1s infinite;
+}
+.zcb-typing .dot:nth-child(2){ animation-delay: .18s; }
+.zcb-typing .dot:nth-child(3){ animation-delay: .36s; }
+
+@keyframes zcb-blink{
+  0%, 80% { opacity: .35; transform: translateY(0); }
+  40%     { opacity: 1;    transform: translateY(-2px); }
+}
+
+
+.zcb-messages {
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  min-height: 0;              /* NEW: vital for grid children to shrink & scroll */
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* message bubbles on light */
+.zcb-msg{
+  border-radius: 12px; padding: 10px 14px; white-space: pre-wrap;
+  line-height: 1.45; max-width: 560px;
+}
+.zcb-msg.user{ align-self: flex-end; background: var(--nav); color: #fff; }
+.zcb-msg.bot{
+  align-self: flex-start;
+  background: #f8fafc;                /* light gray bubble */
+  color: var(--text);
+  border: 1px solid var(--line);
+}
+.zcb-sources{ margin-top: 6px; font-size: 12px; color: var(--muted); }
+.zcb-sources strong{ color: var(--nav); }
+
+/* input area — Inter font and light borders */
+.zcb-inputWrap{ padding: 12px; border-top: 1px solid var(--line); background: #fff; }
+.zcb-textarea{
+  width: 100%; max-width: 100%;
+  padding: 10px 12px; border-radius: 10px; box-sizing: border-box;
+  border: 1px solid #cbd5e1; background: #ffffff; color: var(--text);
+  resize: none; outline: none; margin-bottom: 8px; min-height: 44px;
+  font-family: "Inter", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  font-size: 14px;
+}
+.zcb-textarea:focus{ border-color: #94a3b8; box-shadow: 0 0 0 3px rgba(83,82,193,.15); }
+
+.zcb-sendBtn{
+  width: 100%; padding: 10px 12px; border-radius: 10px;
+  border: 1px solid var(--nav); background: var(--nav); color: #fff; font-weight: 600;
+  cursor: pointer; opacity: 1; transition: filter .15s ease, transform .06s ease;
+}
+.zcb-sendBtn:disabled{ opacity: .6; cursor: not-allowed; }
+.zcb-sendBtn:hover{ filter: brightness(1.03); }
+.zcb-sendBtn:active{ transform: translateY(1px); }
+
+/* Mobile: full-screen sheet */
+@media (max-width: 520px){
+  .zcb-bubble{ right: 12px; bottom: 12px; }
+  .zcb-panel{ right: 0; bottom: 0; width: 100%; border-radius: 0; }
+  .zcb-panel.open{ height: 100vh; max-height: 100vh; }
+}
+
+.zcb-chips{
+  display: flex; flex-wrap: wrap; gap: 8px;
+  padding: 0 14px 10px 14px;
+}
+.zcb-chip{
+  border: 1px solid var(--line);
+  background: #f8fafc;
+  color: var(--text);
+  padding: 6px 10px;
+  border-radius: 9999px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background .15s ease, transform .05s ease, border-color .15s ease;
+}
+.zcb-chip:hover{ background: #eef2ff; border-color: var(--nav); }
+.zcb-chip:active{ transform: translateY(1px); }
+
+/* scroll-to-bottom button (centered above input) */
+.zcb-toBottom{
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  /* bottom set in JSX via inline style */
+  width: 36px;
+  height: 36px;
+  border-radius: 9999px;
+  border: 1px solid var(--line);
+  background: var(--nav);
+  color: #fff;
+  /* NEW: rock-solid centering */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;            /* remove any default padding */
+  line-height: 0;        /* kill text layout artifacts */
+  box-sizing: border-box;
+  cursor: pointer;
+  box-shadow: 0 10px 22px rgba(2,6,23,.18);
+  transition: transform .06s ease, filter .15s ease, opacity .15s ease;
+}
+.zcb-toBottom:hover{ filter: brightness(1.05); }
+.zcb-toBottom:active{ transform: translateX(-50%) translateY(1px); }
+
+/* Ensure the icon itself has no extra spacing */
+.zcb-toBottom svg{
+  width: 18px;
+  height: 18px;
+  display: block;
+}
+
+/* Quick replies that live INSIDE the messages list */
+.zcb-chipsInline{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 6px 0 10px;   /* inside the scroll area */
+}
+
+/* Bump the bubble above the panel */
+.zcb-bubble{
+  z-index: 2147483646; /* higher than panel */
+}
+
+/* Panel sits just below bubble */
+.zcb-panel {
+  z-index: 2147483645;
+
+  /* CLOSED state defaults — keep panel out of the way */
+  opacity: 0;
+  transform: translateY(16px) scale(.98);
+  pointer-events: none;
+  visibility: hidden;
+  transition: opacity .18s ease, transform .18s ease, visibility 0s linear .18s;
+}
+
+/* OPEN state — visible & interactive */
+.zcb-panel.open {
+  opacity: 1;
+  transform: none !important;
+  pointer-events: auto;
+  visibility: visible;
+  transition: opacity .18s ease, transform .18s ease, visibility 0s;
+}
+
+/* Keep the bubble pinned to the safe-area corners */
+#zigtal-bubble-btn.zcb-bubble {
+  position: fixed;
+  right: max(16px, env(safe-area-inset-right));
+  bottom: max(16px, env(safe-area-inset-bottom));
+}
+
+:root{
+  --brand:#FFA500;
+  --nav:#5352c1;
+  --bg:#ffffff;
+  --panel:#ffffff;
+  --text:#0f172a;
+  --muted:#64748b;
+  --line:#e5e7eb;
+
+  /* NEW: bubble sizing & gap so panel doesn't cover it */
+  --zcb-bubble-size: 58px;  /* matches .zcb-bubble img size */
+  --zcb-bubble-gap: 12px;   /* space between bubble and panel */
+}
+
+/* ...keep your existing styles... */
+
+/* Panel sits above the bubble instead of on top of it */
+.zcb-panel {
+  position: fixed;
+  right: max(16px, env(safe-area-inset-right));
+  /* NEW: lift the panel by bubble-size + gap */
+  bottom: calc(
+    max(16px, env(safe-area-inset-bottom))
+    + var(--zcb-bubble-size)
+    + var(--zcb-bubble-gap)
+  );
+
+  width: clamp(320px, 90vw, 420px);
+  height: clamp(560px, 78vh, 760px);
+  max-height: calc(
+    100vh - max(16px, env(safe-area-inset-top)) - max(16px, env(safe-area-inset-bottom))
+  );
+
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  border-radius: 16px;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+  z-index: 2147483645;
+
+  /* CLOSED state (unchanged) */
+  opacity: 0;
+  transform: translateY(16px) scale(.98);
+  pointer-events: none;
+  visibility: hidden;
+  transition: opacity .18s ease, transform .18s ease, visibility 0s linear .18s;
+}
+
+/* OPEN state (unchanged) */
+.zcb-panel.open{
+  opacity: 1;
+  transform: none !important;
+  pointer-events: auto;
+  visibility: visible;
+  transition: opacity .18s ease, transform .18s ease, visibility 0s;
+}
+
+/* Bubble stays pinned in corner */
+#zigtal-bubble-btn.zcb-bubble{
+  position: fixed;
+  right: max(16px, env(safe-area-inset-right));
+  bottom: max(16px, env(safe-area-inset-bottom));
+  z-index: 2147483646; /* above panel */
+}
+
+/* Mobile: use full-screen sheet, so don't offset by bubble */
+@media (max-width: 520px){
+  .zcb-bubble{ right: 12px; bottom: 12px; }
+  .zcb-panel{
+    right: 0;
+    bottom: 0;           /* override offset on small screens */
+    width: 100%;
+    border-radius: 0;
+  }
+  .zcb-panel.open{
+    height: 100vh;
+    max-height: 100vh;
+  }
+}
