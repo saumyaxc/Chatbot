@@ -12,7 +12,6 @@ CHAT_MODEL = "gpt-4o-mini"
 
 client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
 
-# ------------- helpers -------------
 _GREETINGS = {"hi", "hello", "hey", "hi!", "hello!", "hey!", "good morning", "good afternoon", "good evening"}
 _FAREWELLS = {"bye", "goodbye", "see you", "thanks", "thank you", "that's all", "done", "exit", "quit"}
 
@@ -68,7 +67,7 @@ def is_refusal(msg: str) -> bool:
         if p in m: return True
     return False
 
-# ------------- index / embeddings -------------
+#  index / embeddings 
 def load_index():
     """Load embeddings and metadata from disk - should be cached at API level"""
     embs = np.load(os.path.join(INDEX_DIR, "embeddings.npy"))
@@ -87,7 +86,7 @@ def centroid_vector(embs: np.ndarray) -> np.ndarray:
     c = c / (np.linalg.norm(c) + 1e-12)
     return c
 
-# ------------- retrieval (MMR) -------------
+#  retrieval (MMR) 
 def mmr_select(similarities: np.ndarray, embeddings: np.ndarray, top_k: int, lambda_mult: float = 0.5, pool_size: int = 40):
     pool_idx = np.argsort(-similarities)[:min(pool_size, len(similarities))]
     if len(pool_idx) == 0:
@@ -111,15 +110,14 @@ def search(embs, meta, query: Optional[str] = None, *, qvec: Optional[np.ndarray
         qvec = embed_query(query or "")
     sims = embs @ qvec
     idx = mmr_select(sims, embs, top_k=top_k, lambda_mult=lambda_mult, pool_size=pool_size)
-    results = [{"score": float(sims[i]), "source": meta[i]["source"], "text": meta[i]["text"]} for i in idx]
+    results = [{"i": int(i), "score": float(sims[i]), "source": meta[i]["source"], "text": meta[i]["text"]} for i in idx]
     if results:
         max_sim = results[0]["score"]
-        min_score_abs = 0.16
-        results = [r for r in results if r["score"] >= max(min_score_abs, 0.80 * max_sim)]
+        min_score_abs = 0.12
+        results = [r for r in results if r["score"] >= max(min_score_abs, 0.65 * max_sim)]
     return results
 
 def build_context(results: List[Dict], *, char_budget: int = 4000, per_chunk_limit: int = 500) -> Tuple[str, List[Dict]]:
-    """Keep context small for speed"""
     blocks, taken, total = [], [], 0
     for r in results:
         chunk = strip_md((r["text"] or "").strip())
@@ -131,12 +129,18 @@ def build_context(results: List[Dict], *, char_budget: int = 4000, per_chunk_lim
         blocks.append(chunk); taken.append(r); total += add
     return "\n\n---\n\n".join(blocks), taken
 
-# ------------- single-call answer + chips -------------
+#  single-call answer + chips 
 SYSTEM_SINGLE = (
     "You are a helpful assistant grounded strictly in the provided CONTEXT.\n"
     "- Output PLAIN TEXT for the 'answer' (no markdown, no **bold**, no code blocks).\n"
+    "- Provide detailed and helpful answers. Aim for 2-4 sentences minimum, unless it's a simple yes/no question.\n"
+    "- Include relevant examples, specifics, and key details from the CONTEXT.\n"
+    "- CRITICAL: End your answer when you've given the information. Do NOT add concluding sentences.\n"
     "- Also propose 3–5 short follow-up questions 'chips' that build on the QUESTION and the ANSWER.\n"
+    "- Be direct and specific. Avoid generic concluding statements or motivational filler.\n"
+    "- Focus on actionable steps, specific features, or clear explanations based strictly on what's in the CONTEXT.\n"
     "- Chips must be answerable strictly from CONTEXT; 6–12 words; avoid duplicates.\n"
+    "- Just state the facts and steps directly from the CONTEXT, then stop.\n"
     "- If the user says goodbye/farewell (bye, goodbye, thanks, etc.), give a brief friendly farewell and offer general help chips.\n"
     "- If the user greeting is detected (e.g., 'hi'), write a friendly single-sentence greeting first *in the answer*, "
     "then a concise line about how you can help based on CONTEXT. Do this only on greetings.\n"
@@ -175,7 +179,7 @@ def parse_json_object(text: str):
         except Exception:
             return None
 
-# ------------- main entry - NEW: accept pre-loaded index -------------
+#  main entry 
 def answer_with_index(embs, meta, query: str, top_k=6, prev_chips: Optional[List[str]] = None, last_answer: str = ""):
     """
     Main answer function that accepts pre-loaded embeddings and metadata.
@@ -279,7 +283,7 @@ def answer(query: str, top_k=6, prev_chips: Optional[List[str]] = None, last_ans
     embs, meta = load_index()
     return answer_with_index(embs, meta, query, top_k, prev_chips, last_answer)
 
-# ------------- index version for UI resets -------------
+#  index version for UI resets 
 def index_version() -> str:
     try:
         meta_path = os.path.join(INDEX_DIR, "meta.json")

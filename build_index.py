@@ -17,6 +17,8 @@ from pptx import Presentation
 from pptx.enum.shapes import MSO_SHAPE_TYPE
 from docx import Document
 from pypdf import PdfReader
+from openpyxl import load_workbook
+from datetime import date, datetime
 
 load_dotenv()   # loads API keys from .env
 
@@ -129,6 +131,37 @@ def read_pptx(path):
 
     return items  # list of (source, text)
 
+def read_xlsx(path):
+    wb = load_workbook(filename=path, data_only=True, read_only=True)
+    items = []
+    base = os.path.basename(path)
+
+    for ws in wb.worksheets:
+        lines = []
+        row_count = 0
+        for row in ws.iter_rows(values_only=True):
+            if row is None:
+                continue
+            row = list(row[:50000])  # limit row length
+            while row and (row[-1] is None or str(row[-1]).strip() == ""):
+                row.pop()
+            if not row:
+                continue
+            row_str = " | ".join("" if v is None else str(v).strip() for v in row)
+            if row_str:
+                lines.append(row_str)
+                row_count += 1
+                if row_count >= 50000:
+                    break
+        text = "\n".join(lines).strip()
+        if text:
+            items.append((f"{base}#{ws.title}", text))
+    try: 
+        wb.close()
+    except Exception:
+        pass
+    return items
+
 # Split long text into overlapping chunks.
 # - Smaller chunks search better and fit context windows.
 # - Overlap helps keep sentences/ideas from being cut off abruptly.
@@ -184,6 +217,10 @@ def main():
                             records.append({"source": src, "text": ch})
                 elif lower.endswith(".pptx"):
                     for src, t in read_pptx(path):
+                        for ch in chunk_text(t):
+                            records.append({"source": src, "text": ch})
+                elif lower.endswith(".xlsx") or lower.endswith(".xlsm"):
+                    for src, t in read_xlsx(path):
                         for ch in chunk_text(t):
                             records.append({"source": src, "text": ch})
                 else:
